@@ -25,6 +25,8 @@ import org.jdom2.output.support.AbstractXMLOutputProcessor;
 import org.jdom2.output.support.FormatStack;
 import org.jdom2.output.support.XMLOutputProcessor;
 import org.jdom2.xpath.XPathFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Model for the HTML Report
@@ -43,6 +46,8 @@ import java.util.Objects;
  * @since 1.0.0
  */
 public class ReportEntryModel {
+
+  private transient Logger logger = LoggerFactory.getLogger(this.getClass());
 
   private final Level level;
   private final String elementContent;
@@ -112,14 +117,26 @@ public class ReportEntryModel {
 
     xpathExpression = "/*" + xpathExpression;
 
-    List<Element> elements =
-        XPathFactory.instance()
-            .compile(xpathExpression, Filters.element(), null,
-                     document.getRootElement().getAdditionalNamespaces())
-            .evaluate(document);
-    if (elements.size() > 0) {
-      this.lineNumber = ((LocatedElement) elements.get(0)).getLine();
-      this.columnNumber = ((LocatedElement) elements.get(0)).getColumn();
+    // In the Mule domain XML the default namespace (no prefix) is set to a specific URI.
+    // This is not allowed in the context of XPath queries.
+    // See issue #423 (GitHub) for details
+    List<Namespace> namespaces = document.getRootElement().getAdditionalNamespaces();
+    // filter out the empty prefix namespace in order to generate the report
+    List<Namespace> filteredNamespaces = namespaces
+        .stream()
+        .filter(namespace -> !namespace.getPrefix().isEmpty())
+        .collect(Collectors.toList());
+
+    try {
+      List<Element> elements = XPathFactory.instance()
+          .compile(xpathExpression, Filters.element(), null, filteredNamespaces)
+          .evaluate(document);
+      if (elements.size() > 0) {
+        this.lineNumber = ((LocatedElement) elements.get(0)).getLine();
+        this.columnNumber = ((LocatedElement) elements.get(0)).getColumn();
+      }
+    } catch (Exception e) {
+      logger.error("An error occurred: ", e);
     }
   }
 

@@ -23,7 +23,10 @@ import com.mulesoft.tools.migration.util.ExpressionMigrator;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jdom2.Element;
+
+import scala.collection.IterableLike;
 import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 import java.util.Arrays;
 import java.util.List;
@@ -92,7 +95,8 @@ public class MelToDwExpressionMigrator implements ExpressionMigrator {
     } catch (Exception e) {
       return compatibilityResolver.resolve(unwrappedExpression, element, report, model, this, enricher);
     }
-    if (result.metadata().children().exists(a -> a instanceof NonMigratable)) {
+    Seq<MigrationMetadata> children = result.metadata().children();
+    if (((IterableLike) children).exists(a -> a instanceof NonMigratable)) {
       List<NonMigratable> metadata =
           (List<NonMigratable>) (List<?>) JavaConverters.seqAsJavaList(result.metadata().children())
               .stream()
@@ -108,7 +112,8 @@ public class MelToDwExpressionMigrator implements ExpressionMigrator {
       report.report("message.expressionsAttachments", element, element);
     }
 
-    if (result.metadata().children().exists(a -> a instanceof JavaModuleRequired)) {
+    Seq<MigrationMetadata> children2 = result.metadata().children();
+    if (((IterableLike) children2).exists(a -> a instanceof JavaModuleRequired)) {
       Dependency javaModuleDependency = new Dependency.DependencyBuilder()
           .withGroupId("org.mule.module")
           .withArtifactId("mule-java-module")
